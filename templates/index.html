@@ -1,35 +1,111 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Railway 방명록</title>
+    <title>회의실 예약 시스템</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center py-10">
-    <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
-        <h1 class="text-2xl font-bold mb-6 text-center text-indigo-600">📝 Railway 방명록</h1>
-        
-        <form action="/submit" method="post" class="mb-6">
-            <div class="flex gap-2">
-                <input type="text" name="content" placeholder="메시지를 남겨주세요..." required
-                    class="flex-1 border border-gray-300 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
-                <button type="submit" 
-                    class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">
-                    등록
-                </button>
-            </div>
-        </form>
 
-        <ul class="space-y-3">
-            {% for message in messages %}
-            <li class="p-4 bg-gray-50 rounded border border-gray-200">
-                {{ message.content }}
-            </li>
-            {% else %}
-            <li class="text-center text-gray-400 py-4">아직 메시지가 없습니다. 첫 번째 메시지를 남겨보세요!</li>
-            {% endfor %}
-        </ul>
+<body class="bg-gray-100 min-h-screen py-10 px-4">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">📅 사내 회의실 예약 현황</h1>
+            <p class="text-gray-600">원하는 시간에 회의실을 선점하세요!</p>
+        </header>
+
+        <div class="grid md:grid-cols-3 gap-8">
+            <!-- 예약 Form -->
+            <div class="md:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
+                <h2 class="text-xl font-bold mb-4 text-indigo-600 border-b pb-2">✏️ 예약하기</h2>
+                <form action="/reserve" method="post" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">예약자 성함</label>
+                        <input type="text" name="reserver_name" required placeholder="홍길동"
+                            class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">회의실 선택</label>
+                        <select name="room_name"
+                            class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="Meeting Room A">Meeting Room A (대회의실)</option>
+                            <option value="Meeting Room B">Meeting Room B (소회의실)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">시작 시간</label>
+                        <select name="start_time"
+                            class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            {% for h in hours %}
+                            <option value="{{ h }}">{{ h }}:00</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-indigo-600 text-white font-bold py-2 rounded hover:bg-indigo-700 transition duration-200">
+                        예약 하기
+                    </button>
+
+                    <div id="error-msg" class="hidden p-3 bg-red-100 text-red-700 text-sm rounded">
+                        ⚠️ 이미 예약된 시간입니다!
+                    </div>
+                </form>
+            </div>
+
+            <!-- 현황판 Dashbaord -->
+            <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-bold mb-4 text-indigo-600 border-b pb-2">📊 실시간 예약 현황</h2>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50">
+                                <th class="border p-3 text-left w-24">시간</th>
+                                {% for room in rooms %}
+                                <th class="border p-3 text-center">{{ room }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in hours %}
+                            <tr>
+                                <td class="border p-3 font-mono text-gray-500">{{ h }}:00</td>
+                                {% for room in rooms %}
+                                {% set reservation = grid[room][h] %}
+                                {% if reservation %}
+                                <td class="border p-2 bg-indigo-100 text-center relative group cursor-help">
+                                    <span class="font-bold text-indigo-800">{{ reservation.reserver_name }}</span>
+                                    <div
+                                        class="absolute hidden group-hover:block z-10 bg-black text-white text-xs p-2 rounded -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                        예약자: {{ reservation.reserver_name }}
+                                    </div>
+                                </td>
+                                {% else %}
+                                <td class="border p-2 text-center text-gray-300 hover:bg-gray-50 transition">
+                                    <span class="text-xs">빈 회의실</span>
+                                </td>
+                                {% endif %}
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        // Check for error param
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('error') === 'already_booked') {
+            document.getElementById('error-msg').classList.remove('hidden');
+        }
+    </script>
 </body>
+
 </html>
